@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Galerie 3D</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#111; overflow:hidden; cursor:grab; }
+  body.dragging { cursor:grabbing; }
+
+  #hint {
+    position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+    color:rgba(255,255,255,0.3); font:11px/1 -apple-system,sans-serif;
+    letter-spacing:.08em; text-transform:uppercase; pointer-events:none;
+    transition: opacity 0.5s;
+  }
+
+  #mode-btn {
+    position:fixed; top:16px; right:20px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.15);
+    color:rgba(255,255,255,0.6);
+    font:11px/1 -apple-system,sans-serif;
+    letter-spacing:.08em; text-transform:uppercase;
+    padding:8px 14px; border-radius:20px;
+    cursor:pointer; transition:background 0.2s;
+  }
+  #mode-btn:hover { background:rgba(255,255,255,0.15); }
+
+  #auto-btn {
+    position:fixed; top:16px; right:130px;
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.15);
+    color:rgba(255,255,255,0.6);
+    font:11px/1 -apple-system,sans-serif;
+    letter-spacing:.08em; text-transform:uppercase;
+    padding:8px 14px; border-radius:20px;
+    cursor:pointer; transition:background 0.2s;
+  }
+  #auto-btn:hover  { background:rgba(255,255,255,0.15); }
+  #auto-btn.active { background:rgba(255,255,255,0.22); color:#fff; }
+</style>
+</head>
+<body>
+
+<div id="hint">Glisser pour regarder · Molette pour avancer/reculer</div>
+<button id="auto-btn">⟳ Rotation auto</button>
+<button id="mode-btn">Vue extérieure</button>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ── Scène ─────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x111111);
+
+const RAYON   = 11.9251;
+const TAILLE  = 3.5;
+const OUTSIDE = 28.62;   // distance caméra mode extérieur
+
+// Groupe qui contient toutes les photos → on le fait tourner pour la rotation auto
+const sphere = new THREE.Group();
+scene.add(sphere);
+
+// ── Caméra & renderer ────────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 5000);
+camera.position.set(0, 0, 0.1);   // départ : centre de la sphère
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+// ── Photos ────────────────────────────────────────────────────────────
+const photos   = [{"url": "web_assets/thumb_0.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_1.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_2.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_3.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_4.jpg", "ratio": 1.0254163014899211}, {"url": "web_assets/thumb_5.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_6.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_7.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_8.jpg", "ratio": 1.4984126984126984}, {"url": "web_assets/thumb_9.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_10.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_11.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_12.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_13.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_14.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_15.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_16.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_17.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_18.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_19.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_20.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_21.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_22.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_23.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_24.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_25.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_26.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_27.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_28.jpg", "ratio": 1.0}, {"url": "web_assets/thumb_29.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_30.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_31.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_32.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_33.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_34.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_35.jpg", "ratio": 1.7777777777777777}, {"url": "web_assets/thumb_36.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_37.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_38.jpg", "ratio": 0.7491680532445923}, {"url": "web_assets/thumb_39.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_40.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_41.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_42.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_43.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_44.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_45.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_46.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_47.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_48.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_49.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_50.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_51.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_52.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_53.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_54.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_55.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_56.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_57.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_58.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_59.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_60.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_61.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_62.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_63.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_64.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_65.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_66.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_67.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_68.jpg", "ratio": 1.7777777777777777}, {"url": "web_assets/thumb_69.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_70.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_71.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_72.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_73.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_74.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_75.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_76.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_77.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_78.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_79.jpg", "ratio": 1.3793103448275863}, {"url": "web_assets/thumb_80.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_81.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_82.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_83.jpg", "ratio": 1.654879773691655}, {"url": "web_assets/thumb_84.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_85.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_86.jpg", "ratio": 0.46208530805687204}, {"url": "web_assets/thumb_87.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_88.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_89.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_90.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_91.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_92.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_93.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_94.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_95.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_96.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_97.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_98.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_99.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_100.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_101.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_102.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_103.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_104.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_105.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_106.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_107.jpg", "ratio": 0.46208530805687204}, {"url": "web_assets/thumb_108.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_109.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_110.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_111.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_112.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_113.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_114.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_115.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_116.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_117.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_118.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_119.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_120.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_121.jpg", "ratio": 0.46208530805687204}, {"url": "web_assets/thumb_122.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_123.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_124.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_125.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_126.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_127.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_128.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_129.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_130.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_131.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_132.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_133.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_134.jpg", "ratio": 1.3333333333333333}, {"url": "web_assets/thumb_135.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_136.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_137.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_138.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_139.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_140.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_141.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_142.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_143.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_144.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_145.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_146.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_147.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_148.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_149.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_150.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_151.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_152.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_153.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_154.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_155.jpg", "ratio": 0.6431761786600496}, {"url": "web_assets/thumb_156.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_157.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_158.jpg", "ratio": 0.75}, {"url": "web_assets/thumb_159.jpg", "ratio": 0.75}];
+const loader   = new THREE.TextureLoader();
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+const GOLDEN   = Math.PI * (3 - Math.sqrt(5));
+
+photos.forEach((data, i) => {
+  const tex = loader.load(data.url);
+  tex.anisotropy      = maxAniso;
+  tex.minFilter       = THREE.LinearMipmapLinearFilter;
+  tex.magFilter       = THREE.LinearFilter;
+  tex.generateMipmaps = true;
+  tex.colorSpace      = THREE.SRGBColorSpace;
+
+  const mat  = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide });
+  const geo  = new THREE.PlaneGeometry(TAILLE * data.ratio, TAILLE);
+  const mesh = new THREE.Mesh(geo, mat);
+
+  const phi   = Math.acos(1 - (2 * (i + 0.5)) / photos.length);
+  const theta = GOLDEN * i;
+  mesh.position.set(
+    RAYON * Math.sin(phi) * Math.cos(theta),
+    RAYON * Math.sin(phi) * Math.sin(theta),
+    RAYON * Math.cos(phi)
+  );
+  mesh.lookAt(0, 0, 0);
+  sphere.add(mesh);
+});
+
+// ── Deux modes : INTÉRIEUR (first-person) / EXTÉRIEUR (orbit) ─────────
+let modeInside = true;   // on démarre à l'intérieur
+
+// --- Mode extérieur : OrbitControls ---
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.enableDamping  = true;
+orbit.dampingFactor  = 0.06;
+orbit.rotateSpeed    = 0.55;
+orbit.zoomSpeed      = 1.0;
+orbit.minDistance    = 1;
+orbit.maxDistance    = OUTSIDE * 3;
+orbit.target.set(0, 0, 0);
+orbit.enabled        = false;   // désactivé au départ (mode intérieur)
+
+// --- Mode intérieur : contrôles FPS custom ---
+let yaw = 0, pitch = 0;
+let yawVel = 0, pitchVel = 0, moveVel = 0;
+const DAMPING    = 0.88;
+const ROT_SPEED  = 0.003;
+const MOVE_SPEED = 0.8;
+
+let isDragging = false, lastX = 0, lastY = 0;
+
+renderer.domElement.addEventListener('mousedown', e => {
+  isDragging = true; lastX = e.clientX; lastY = e.clientY;
+  document.body.classList.add('dragging');
+});
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  document.body.classList.remove('dragging');
+});
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  lastX = e.clientX; lastY = e.clientY;
+  if (modeInside) {
+    yawVel   -= dx * ROT_SPEED;
+    pitchVel -= dy * ROT_SPEED;
+  }
+});
+
+// Touch
+let lastTX = 0, lastTY = 0;
+renderer.domElement.addEventListener('touchstart', e => {
+  lastTX = e.touches[0].clientX; lastTY = e.touches[0].clientY;
+});
+renderer.domElement.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const dx = e.touches[0].clientX - lastTX;
+  const dy = e.touches[0].clientY - lastTY;
+  lastTX = e.touches[0].clientX; lastTY = e.touches[0].clientY;
+  if (modeInside) { yawVel -= dx * ROT_SPEED; pitchVel -= dy * ROT_SPEED; }
+}, { passive: false });
+
+// Molette : avance/recule en mode intérieur, zoom en mode extérieur (géré par orbit)
+renderer.domElement.addEventListener('wheel', e => {
+  if (!modeInside) return;
+  e.preventDefault();
+  moveVel -= e.deltaY * 0.01 * MOVE_SPEED;
+}, { passive: false });
+
+// ── Rotation automatique de la sphère ────────────────────────────────
+let autoRotate    = false;
+const AUTO_SPEED  = 0.0008;   // radians/frame — ajuste ici la vitesse
+
+const autoBtn = document.getElementById('auto-btn');
+autoBtn.addEventListener('click', () => {
+  autoRotate = !autoRotate;
+  autoBtn.classList.toggle('active', autoRotate);
+});
+
+// ── Bouton switch de mode ─────────────────────────────────────────────
+const modeBtn = document.getElementById('mode-btn');
+const hint    = document.getElementById('hint');
+
+function switchMode() {
+  modeInside = !modeInside;
+
+  if (modeInside) {
+    // → intérieur
+    orbit.enabled = false;
+    camera.position.set(0, 0, 0.1);
+    yaw = pitch = yawVel = pitchVel = moveVel = 0;
+    camera.quaternion.identity();
+    modeBtn.textContent  = 'Vue extérieure';
+    hint.textContent     = 'Glisser pour regarder · Molette pour avancer/reculer';
+  } else {
+    // → extérieur
+    orbit.enabled = true;
+    camera.position.set(0, 0, OUTSIDE);
+    orbit.target.set(0, 0, 0);
+    orbit.update();
+    modeBtn.textContent  = 'Vue intérieure';
+    hint.textContent     = 'Glisser pour orbiter · Molette pour zoomer';
+  }
+}
+
+modeBtn.addEventListener('click', switchMode);
+
+// Resize
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ── Boucle ────────────────────────────────────────────────────────────
+const fwd = new THREE.Vector3();
+
+(function loop() {
+  requestAnimationFrame(loop);
+
+  // Rotation auto de la sphère (tourne le groupe, pas la caméra)
+  if (autoRotate) {
+    sphere.rotation.y += AUTO_SPEED;
+  }
+
+  if (modeInside) {
+    // FPS : rotation du regard
+    yaw   += yawVel;
+    pitch += pitchVel;
+    pitch  = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, pitch));
+    yawVel   *= DAMPING;
+    pitchVel *= DAMPING;
+
+    const qY = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), yaw);
+    const qP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch);
+    camera.quaternion.copy(qY).multiply(qP);
+
+    // Avance/recule
+    if (Math.abs(moveVel) > 0.001) {
+      camera.getWorldDirection(fwd);
+      camera.position.addScaledVector(fwd, moveVel);
+      moveVel *= DAMPING;
+    }
+  } else {
+    orbit.update();
+  }
+
+  renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>
